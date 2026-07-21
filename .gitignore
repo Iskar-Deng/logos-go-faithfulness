@@ -1,0 +1,13 @@
+node_modules/
+.DS_Store
+.env
+
+__pycache__/
+*.py[cod]
+
+data/raw/*.json
+!data/raw/logos_rollout_1k_first3.json
+data/processed/*.jsonl
+public/data/*.json
+public/data/*.jsonl
+

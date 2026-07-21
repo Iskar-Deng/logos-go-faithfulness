@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LoGos Rollout Viewer</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell rollout-shell">
+      <section class="board-workspace" aria-label="Rollout board">
+        <header class="topbar">
+          <div>
+            <h1>LoGos Rollout Viewer</h1>
+            <p>Base position + parsed variation branches</p>
+          </div>
+          <div class="status-strip">
+            <span id="sampleStatus">No sample</span>
+            <span id="branchStatus">No branch</span>
+          </div>
+        </header>
+
+        <div class="board-wrap">
+          <div class="coordinate-row coordinate-top" id="coordTop"></div>
+          <div class="coordinate-col coordinate-left" id="coordLeft"></div>
+          <div class="board" id="board" role="grid" aria-label="19 by 19 Go board"></div>
+          <div class="coordinate-row coordinate-bottom" id="coordBottom"></div>
+          <div class="coordinate-col coordinate-right" id="coordRight"></div>
+        </div>
+
+        <div class="toolbar rollout-toolbar">
+          <button type="button" id="baseBtn">Base</button>
+          <button type="button" id="prevStepBtn">Prev</button>
+          <button type="button" id="nextStepBtn">Next</button>
+        </div>
+      </section>
+
+      <aside class="side-panel rollout-panel" aria-label="Rollout structured data">
+        <section class="model-config">
+          <label for="sampleSelect">Sample</label>
+          <select id="sampleSelect"></select>
+          <label for="branchSelect">Branch</label>
+          <select id="branchSelect"></select>
+        </section>
+
+        <section class="rollout-summary">
+          <h2>Answer</h2>
+          <div id="answerBox"></div>
+        </section>
+
+        <section class="rollout-summary">
+          <h2>Branch Moves</h2>
+          <ol id="branchMoves"></ol>
+        </section>
+
+        <section class="rollout-summary text-summary">
+          <div class="summary-header">
+            <h2 id="sourceTitle">Reasoning</h2>
+            <div class="segmented-control" aria-label="Text view">
+              <button type="button" id="reasoningViewBtn" aria-pressed="true">Reasoning</button>
+              <button type="button" id="inputViewBtn" aria-pressed="false">Input</button>
+            </div>
+          </div>
+          <textarea id="sourceBox" spellcheck="false"></textarea>
+        </section>
+
+        <div class="engine-note" id="engineNote">Ready</div>
+      </aside>
+    </main>
+
+    <script src="/rollout.js"></script>
+  </body>
+</html>
