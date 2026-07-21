@@ -17,7 +17,6 @@ USER_MOVE_RE = re.compile(rf"(?P<ply>\d+)\.(?P<color>[XO])-(?P<coord>{COORD_RE})
 TAG_RE = re.compile(r"<(?P<tag>reasoning|answer)>(?P<body>[\s\S]*?)</(?P=tag)>")
 CJK_RUN_RE = re.compile(r"^[\u3400-\u4dbf\u4e00-\u9fff]+")
 HEADING_PREFIX_RE = re.compile(r"^\s*(?:\d+\s*[\.、]\s*)?")
-TERM_PUNCT_RE = re.compile(r"[，,。.;；:：、!！?？]")
 
 COLOR_TEXT_TO_CODE = {"黑": "X", "白": "O"}
 OPEN_PARENS = {"(": ")", "（": "）"}
@@ -214,20 +213,33 @@ def parse_variation_mentions(
 ) -> tuple[list[Mention], list[dict[str, Any]]]:
     warnings: list[dict[str, Any]] = []
     mentions: list[Mention] = []
+    skipped_mentions: list[dict[str, Any]] = []
 
     for line_start, line_end, line in iter_lines(reasoning):
         matches = [match for match in MOVE_RE.finditer(line) if int(match.group("ply")) >= first_ply]
         if not matches:
             continue
         line_shape = classify_line(matches, line)
+        if line_shape == "mixed_inline" and len(matches) == 1:
+            match = matches[0]
+            skipped_mentions.append(
+                {
+                    "reason": "inline_narrative",
+                    "raw": match.group(0),
+                    "line": line.strip(),
+                    "text_span": {
+                        "start": line_start + match.start(),
+                        "end": line_start + match.end(),
+                    },
+                }
+            )
+            continue
 
         for index, match in enumerate(matches):
             next_start = matches[index + 1].start() if index + 1 < len(matches) else len(line)
             segment = line[match.end() : next_start]
             parsed = parse_segment(segment)
             shape = "multi_move_line" if line_shape == "mixed_inline" and len(matches) > 1 else line_shape
-            if shape == "mixed_inline":
-                shape = "inline_low_confidence"
             confidence = estimate_confidence(shape, parsed)
             raw_end_in_line = match.end() + parsed["consumed"]
             branch_intro = find_branch_intro(reasoning, line_start + match.start(), match.group("coord"), first_ply, int(match.group("ply")))
@@ -255,6 +267,14 @@ def parse_variation_mentions(
             {
                 "type": "no_variation_moves",
                 "message": f"sample {sample_id} has no parsed variation moves in reasoning",
+            }
+        )
+    if skipped_mentions:
+        warnings.append(
+            {
+                "type": "skipped_inline_narrative_moves",
+                "count": len(skipped_mentions),
+                "mentions": skipped_mentions,
             }
         )
     return mentions, warnings
@@ -291,15 +311,13 @@ def parse_segment(segment: str) -> dict[str, Any]:
 
     if segment[0] in OPEN_PARENS:
         content, paren_end = consume_parenthetical(segment, 0)
-        if content and is_short_label(content):
-            term = content
-            term_source = "parenthesized_short"
+        if content:
+            parenthetical = content
             consumed += paren_end
             trailing = segment[paren_end:].strip()
             dash_comment = consume_dash_comment(trailing)
-        elif content:
-            parenthetical = content
-            consumed += paren_end
+            if dash_comment:
+                consumed += len(segment[paren_end:])
         return parsed_segment(term, term_source, parenthetical, dash_comment, consumed)
 
     match = CJK_RUN_RE.match(segment)
@@ -347,10 +365,6 @@ def consume_parenthetical(text: str, start: int) -> tuple[str, int]:
     return text[start + 1 : end].strip(), end + 1
 
 
-def is_short_label(text: str) -> bool:
-    return bool(text) and len(text) <= 6 and not TERM_PUNCT_RE.search(text)
-
-
 def consume_dash_comment(text: str) -> str:
     stripped = text.strip()
     if stripped and stripped[0] in SEPARATORS:
@@ -360,12 +374,8 @@ def consume_dash_comment(text: str) -> str:
 
 def estimate_confidence(shape: str, parsed: dict[str, Any]) -> str:
     term = parsed["term"]
-    if shape == "inline_low_confidence":
-        return "low"
     if parsed["term_source"] == "surface_cjk_run" and term and len(term) <= 6:
         return "high"
-    if parsed["term_source"] == "parenthesized_short":
-        return "medium"
     if parsed["parenthetical"]:
         return "medium"
     return "low"

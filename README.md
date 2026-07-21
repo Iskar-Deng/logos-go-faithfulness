@@ -146,6 +146,14 @@ Each move node stores the extracted move, term span, and comment span:
 }
 ```
 
+Parser rules:
+
+- A move anchor (`23.X-C17`) is required for every tree node.
+- A term is only taken from the surface CJK span immediately after the coordinate.
+- Parenthesized text is stored as comment, not term.
+- Dash text after a move is stored as inline comment.
+- Inline narrative mentions are skipped from the tree and recorded in `warnings`.
+
 ## Check
 
 ```bash
